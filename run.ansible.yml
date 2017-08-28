@@ -1,0 +1,74 @@
+---
+- hosts: localhost
+  become: no
+  vars:
+    # Global config
+    base_url: "127.0.0.1.nip.io"
+    # Config for Symfony (optional)
+    enable_symfony: true
+    php_version: 5.6
+    # Config for MySQL (optional)
+    enable_mysql: true
+    mysql_version: 5.7
+    mysql_root_password: root
+    # Config for PostgreSQL (optional)
+    enable_postgres: true
+    postgres_version: 9.6
+    postgres_root_password: root
+    # Config for Redis (optional)
+    enable_redis: true
+    redis_version: 3.2
+    # Config for MongoDB (optional)
+    enable_mongodb: true
+    mongodb_version: 3.4
+    # Config for ElasticSearch (optional)
+    enable_elasticsearch: true
+    elasticsearch_version: 5.5
+    # Config for RabbitMQ (optional)
+    enable_rabbitmq: true
+    rabbitmq_version: 3.6
+    rabbitmq_management: true
+
+##################
+### DONT TOUCH ###
+##################
+
+  pre_tasks:
+    - name: "Create variable"
+      set_fact:
+        work_dir: >-
+          {{ playbook_dir }}/tmp/{{ ansible_date_time.date }}-{{ ansible_date_time.hour }}.{{ ansible_date_time.minute }}-{{ 100 | random | to_uuid | hash('md5') }}
+    - name: "Create workdir"
+      file:
+        path: "{{ work_dir }}"
+        state: directory
+
+  tasks:
+    - name: "Create template"
+      template:
+        src: "templates/docker-compose.yml"
+        dest: "{{ work_dir }}/docker-compose.yml"
+
+    - name: "BUILD | build docker"
+      command: "docker-compose build"
+      when: stage == "build"
+      args:
+        chdir: "{{ work_dir }}"
+
+    - name: "START | start docker"
+      command: "docker-compose up -d"
+      when: stage == "start"
+      args:
+        chdir: "{{ work_dir }}"
+
+    - name: "STOP | stop docker"
+      command: "docker-compose stop -f"
+      when: stage == "stop"
+      args:
+        chdir: "{{ work_dir }}"
+
+  post_tasks:
+    - name: "Remove workdir"
+      file:
+        path: "{{ work_dir }}/"
+        state: absent
